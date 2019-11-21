@@ -1,0 +1,354 @@
+---
+title: "Final Report"
+author: Sam Cole
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **Major League Baseball Stats Analysis**
+
+##**Background & Questions Raised**  
+
+This data came from [MLB.com](http:://mlb.mlb.com/stats), which has MLB player stats dating all the way back to 1876. I chose to focus on Active players. This data set is the set of players that are starting almost every game, averaging at least 3.1 plate appearances per game. So basically, these are the starting/regular players of each of the 30 MLB teams. In this data you can see player positions, batting averages, RBIs, and home runs, as well as many other stats for each player. The top 1000 rankings are included in our dataset. Ranking is determined solely by AVG, or batting average. Each row, or rank, is the stats for one player for one year, so there are players with multiple rows, as they have played multiple years. It's interesting to note that there are 1001 rows, this is because two players have the same ranking at some point, giving us players in 1000 ranks.
+
+###Variable Definitions  
+**`RK:`** rank. The rank of the player (in a given year) based on their batting average.  
+**`Player:`** Name of the player.  
+**`Year:`** Year in which the player's stats are from.  
+**`Team:`** The abbreviation of the 30 MLB team names. In the Stadiums file, "Team Name" shows the full name of the teams.   
+**`Pos:`** Player's position.   
+       - 1B: first base   
+       - SS: shortstop   
+       - 2B: second base   
+       - 3B: third base   
+       - CF: center field   
+       - RF: right field   
+       - LF: left field   
+       - C: catcher   
+       - DH: designated hitter (only in the AL)   
+       - OF: outfielder      
+**`G:`** number of games in which the player appeared (in a given year).   
+**`AB:`** number of official at bats by a batter. (This is plate appearances minus sacrifices, walks, and "hit by pitches".)   
+**`R:`** runs. The number of times a baserunner safely reaches home plate.    
+**`H:`** hits. The number of times a batter hits the ball and reaches a base safely (without the aid of an error.)  
+**`2B:`** number of times a batter hits the ball and reaches second base.  
+**`3B:`** number of times a batter hits the ball and reaches third base.  
+**`HR:`** numer of times a batter hits the ball and gets a home run.  
+**`RBI:`** runs batted in. The number of runs that come from a batter hitting the ball. (If bases are loaded and batter hits a HR, RBI is 4)   
+**`BB:`** walks. Four balls in an bat.  
+**`SO:`** strikeouts. Three strikes during an at bat.  
+**`SB:`** stolen base. Number of times a player has stolen a base.  
+**`CS:`** caught stealing. Number of times a player has gotten out while trying to steal a base.  
+**`AVG:`** batting average. The chance a player has of getting a hit during an at bat.  
+**`OBP:`** on base percentage. The chance a player will get on base during an at bat. How frequently they get on base per plate appearance.  
+**`SLG:`** slugging percent. The same as batting average but it takes into account singles, doubles, triples, and HRs. A higher SLG means a player is more "productive" when hitting.  
+**`OPS:`** on base plus slugging percentage. This is the ability of a player to get on base AND hit for power.  
+**`SF:`** number of times a runner tags up and scores after a batter's fly out.   
+**`AO:`** fly outs. Total number of times a batter hit the ball and it was caught in the air, resulting in an out.   
+**`GO:`** ground outs. Number of times a batter has gotten out on a ground ball.   
+**`PA:`** plate appearances.  
+**`NP:`** number of pitches thrown during all of the batter's plate appearances.   
+**`RBIAB:`** runs batted in per at bat.  
+**`HRAB:`** home runs per at bat.  
+**`BABIP:`** batting average on balls in play. When a player makes contact with the ball, what's the chance they'll get a hit? This does not account for strikeouts (because the ball is not put into play).  
+**`NPPA:`** number of pitches per plate appearance.  
+**`NPAB:`** number of pitches per at bat.   
+**`SOAB:`** number of strikeouts per at bat.   
+
+
+
+###**Questions I could answer:**  
+
+What do the batting average and OPS look like for all active players?  
+Which position has the best batting average?  
+What stats have strong correlations to one another?  
+Does getting more pitches in an at Bat increase the odds of hitting a homerun?  
+Which position has the best batting average?  
+What teams have the best batting averages?  
+How did switching teams affect Albert Pujol's stats?  
+Why is Mike Trout considered such a well-rounded player (possibly the greatest of all time)?  
+Do Homerun hitters have higher Strike Out percentages?  
+What makes the Yankees and Red Sox such a good rivalry?  
+Does the average number of pitches in an at-bat correlate with batting average? Does it correlate with HRs?  
+Where does Buster Posey fall in terms of average BABIP?  
+Which teams hit the most homeruns?  
+Where are the stadiums of the 30 MLB teams?  
+
+
+
+##**Obtaining and Cleaning the Dataset**
+
+I scraped the data using a tool called selector gadget. This was done automatively so it was quiet easy.To clean the data I removed the * before player names, as well as deleted the columns Player2 and Player3, which were just repeating the same info as Player, and a few variables were changed from characters to numeric. In order to answer some of these questions, I created a few variables by mutating existing columns. The variables created were: RBIAB, HRAB, BABIP, NP, NPPA, NPAB, and SOAB. 
+
+```{r, include=FALSE}
+library(readxl)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+dat <- read_excel("ALL.xlsx")
+dat <- select(dat, -Player2, -Player3)
+
+  dat <- mutate(dat, RBIAB = RBI / AB)
+  dat$RBIAB <- round(dat$RBIAB, digits = 3)
+  ##Runs batted in per at bat^
+  dat <- mutate(dat, HRAB = HR / AB) 
+  dat$HRAB <- round(dat$HRAB, digits = 3)
+  ##Home Runs per at bat^
+  dat <- mutate(dat, BABIP = (H - HR) / (AB - SO - HR + SF))
+  dat$BABIP <- round(dat$BABIP, digits = 3)
+  ##Batting Average on Balls in Play^
+  dat$NP <- as.numeric(dat$NP) ##Cleaning the Data, changing column from character to Number
+  dat <- mutate(dat, NPPA = NP / PA)
+  dat$NPPA <- round(dat$NPPA, digits = 3)
+  ##Number of pitches per plate appearance^
+  dat <- mutate(dat, NPAB = NP / AB)
+  dat$NPAB <- round(dat$NPAB, digits = 3)
+  ##Number of Pitches per At bat per at bat^
+  dat <- mutate(dat, SOAB = SO / AB)
+  dat$SOAB <- round(dat$SOAB, digits = 3)
+  ##Number of StrikeOuts per at bat^
+```
+##**The Exploratory Analysis**
+
+
+I began by getting some simple visualizations of the basic stats in the data: 
+```{r, echo=FALSE}
+g <- ggplot(dat, aes(x = AVG)) + geom_histogram(binwidth = .002,color="Black", fill="light blue") + xlab("Batting Average") + ggtitle("Histogram of Batting Average") + ylab("Count")
+ggplotly(g)
+```
+**What do the batting average and OPS look like for all active players?**   
+
+This shows that the batting averages for all active players (with each data point being a certain player in a certain year). If an AVG is .300 (or 300), that means the player has a 30% chance of getting a hit. For reference, anything over .300 is considered a really good batting average. The outliers are players who played just a few games in a season, and happened to play really well during those games (thus making them very high outliers). This alone does not tell us how good a player is as different players have different approaches, some hit to get on base, some hit with for HRs. The distribution would be bell shaped if we had the lower ranked players were also included (players who have AVGs less than .25).
+
+Both batting average and OPS are bell-shaped for active players. 
+
+
+**Which position has the best batting average?**  
+I then wanted to look at which position had the best batting average. My assumption was the Designated Hitters would have the highest AVG, considering their only job is to hit. I got a completely different result. This is probably due to the fact that I do not have much data for the DH, so we have to take these results with a grain of sand.
+```{r, echo=FALSE}
+dat2 <- dat
+dat2%>%
+  select(Pos, AVG) %>%
+  mutate(AVG = ifelse(AVG == -9999, NA, AVG)) %>%
+  group_by(Pos) %>%
+  mutate(MEANAVG = mean(AVG, na.rm = T)) -> dat2
+h<- ggplot(dat2, aes(x = AVG)) + geom_histogram(binwidth = .002,color="goldenrod2") + xlab("Batting Average") + ggtitle("Histogram of Batting Average by Position") + ylab("Count") + facet_wrap(~Pos) + geom_vline(aes(xintercept = MEANAVG))
+ggplotly(h)
+
+
+library(knitr)
+library(kableExtra)
+dat3 <- select(dat2, -AVG)
+dat3 <- distinct(dat3)  #ROUND TO 3 digits
+dat3$MEANAVG <- round(dat3$MEANAVG, digits = 3)
+
+gh<- head(dat3, 11)
+kable(gh) %>% kable_styling(bootstrap_options = c("striped", "hover"))%>% row_spec(9, bold = T, color = "white", background = "red") %>% row_spec(1, bold = T, color = "white", background = "green")
+```
+Using this data, I found that Designated Hitters actually have the WORST batting averages. This could possibly be because we have less data for DH since they're only in the American League. If I had data for ALL players in the MLB, not just the ones with 3.1+ plate appearances, we would see a different story, averages for all the positions would be much closer to one another and DH would be among the positions with the higher batting averages.
+
+**What stats have strong correlations to one another?**  
+To find what stats have strong correlations to one another I created a correlation matrix using several of the variables in the data and produced a heatmap to better visualize the relationships.  
+```{r, include=FALSE}
+library("Hmisc")
+library(corrplot)
+library(plotly)
+cordata <- select(dat, AVG, OBP, SLG, BABIP, OPS, HR, AO, SO, RBI, BB, XBH, NPPA, SB)
+cordata <- cor(cordata, use = "complete.obs")
+cordata.rcorr = rcorr(as.matrix(cordata))
+cordata.rcorr
+palette = colorRampPalette(c("blue", "yellow", "red")) (20)
+```
+
+```{r, echo=FALSE}
+corrplot(cordata, col = palette) #dot graph
+```   
+   
+   
+I started by graphing a bunch of scatterplots, going through variables two at a time to see their relationships, until I decided to  just use a correlation matrix and see all the stats at the same time. As you can see, there is a lot of red, and not a lot of green/grey. This is because most hitting stats in baseball are positive towards the hitter and therefore will have positive correlations. The only 2 stats that are inverses are AO and SO (Fly-Outs and Strike-Outs), and this is shown by these being the only grey points on the matrix. The strongest inverse is seen with Fly-Outs and BABIP. This makes sense as BABIP only takes into account balls that are in play, so if a ball is caught in the air and there is an out, this would negativley effect BABIP. You can see a lot of Very Strong correlations, because a lot of the stats measure very similar things, for example: OBP and AVG.   
+
+  
+  
+**Does getting more pitches in an at Bat increase the odds of hitting a homerun?**   
+After using a scatterplot to visualize the realtionship between HRPA and NPPA and finding the R^2, I was able to conclude that there is no real evidence of a correlation between the two, using the data set that I have.
+
+
+   
+**What teams have the best batting averages?**  
+   
+```{r, echo=FALSE}
+dat5 <- dat
+dat5%>%
+  select(Team, AVG) %>%
+  mutate(AVG = ifelse(AVG == -9999, NA, AVG)) %>%
+  group_by(Team) %>%
+  mutate(MEANAVG = mean(AVG, na.rm = T)) -> dat5
+
+dat6 <- select(dat5, -AVG)
+dat6 <- distinct(dat6)
+dat6$MEANAVG <- round(dat6$MEANAVG, digits = 3)
+dat6 <- dat6[order(-dat6$MEANAVG, dat6$Team) , ]
+best <- head(dat6, 5)
+kable(best) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+I found that the teams with the top 5 best batting averages in our dataset were (in order): The Miami Marlins, The St. Louis Cardnials, The Washington Nationals, The Colorado Rockies, and The Detroit Tigers. This is obviously skewed with the data that I have. Upon looking at the players for these teams, I saw that Albert Pujols holds 2 of the top 10 rankings in our data (so his batting average was super high in these years) and was playing for the Cardinals at the time, which is a large contributing factor as to why they have one of the best team batting averages. This leads into our next question...    
+   
+   
+
+**How did switching teams affect Albert Pujols's stats?**  
+```{r, echo=FALSE}
+Albert <- dat[grepl("Pujols,A", dat$Player),]
+
+a <- ggplot(Albert, aes(x = Year)) +
+  geom_line(aes( y = HR), color = "blue", size=1.25) +
+  geom_line(aes( y = H), color = "red", size=1.25) + 
+  geom_line(aes( y = BB), color = "purple", size=1.25) + 
+  geom_line(aes( y = RBI), color = "darkgoldenrod4", size=1.25) +
+  geom_line(aes( y = XBH), color = "Dark Green", size=1.25) +
+  ylab("Totals By Category") + 
+  xlab("Year") + 
+  ggtitle("Albert Pujols's Career Mapped by Year") +
+  geom_vline(xintercept = 2010, color = "Black") + 
+  annotate("Text", 2011.8, 140, label = "Left ALL his fans \nand headed to the Angels. \nAll Stats Plummit.", size=3) 
+ ggplotly(a)
+
+```   
+From the graph we can see that when Pujols's left the Cardinals in 2010 and joined the Angels, his stats severly suffered. I mapped Albert Pujols’s career by year, looking at 5 different stats. Since Pujols is known for being a top Home run hitter in the last 20 years, I needed to include Home Runs, RBI’s,  Hits, and Extra Base Hits. With him being such a solid hitter, pitchers were scared to pitch to him, and would routinely end up walking him, so I looked at walks as well. The black vertical line on the graph represents the end of the 2010 season, when he left St. Louis and went to the Angels. This was quite interesting as you can see a large drop off in all of his stats. This is not uncommon, a small percentage of star athletes leave their home city and just don’t do as well. This was interesting to see using a graph. Even if you take into account him just getting older, there's still a noticable drop in his performance after he switched teams. I think a big part of this drop could be because he had played his whole career in St. Louis, and it would be weird to lose his fan base that he had in St. Louis.
+   
+   
+**Why is Mike Trout considered such a well-rounded player (possibly the greatest of all time)?**   
+```{r, echo=FALSE}
+Trout <- dat[grepl("Trout,M", dat$Player),]
+Trout <- Trout[-c(1),]
+b <- ggplot(Trout, aes(x = Year)) +
+  geom_line(aes( y = HR), color = "blue", size=1.25) +
+  geom_line(aes( y = SB), color = "red", size=1.25) + 
+  geom_line(aes( y = BB), color = "purple", size=1.25) + 
+  geom_line(aes( y = RBI), color = "darkgoldenrod3", size=1.25) +
+  geom_line(aes( y = XBH), color = "Dark Green", size=1.25) +
+  ylab("Totals By Category") + 
+  xlab("Year") + 
+  ggtitle("Mike Trout's Career Mapped by Year") +
+  geom_vline(xintercept = 2017, color = "Black", , size=1.25)
+ggplotly(b)
+```   
+   
+Mike Trout is currently the best baseball player in the MLB having the highest WAR in all of Baseball, and some people think that he will be considered the best player that has ever played the game. Just like with Albert Pujols, pitchers are scared to pitch to him, and you can see he accumulates a lot of walks each season. I chose to look at Stolen Bases as well with Trout, as he is known to be a good base stealer, unlike Pujols who is quite slow. The vertical black line in this case represents 2017. In 2017 he had a thumb injury which caused him to miss a third of the season, Trout played only 114 games out of 162, missing 48. In both 2016 and 2018, trout played the majority of the season not missing more than 20 games each year. You can see with the bottom three lines, (HR, SB, and XBH) that he came back after being injured in 2017 and had an incredible season, almost matching his prior stats and even hitting more home runs than the year before. This as a testament as to what kind of a player Mike Trout is, the stats are proof of his greatness.   
+   
+   
+**What makes the Yankees and Red Sox such a good rivalry?**  
+```{r, echo=FALSE, message=FALSE}
+RedSox <- dat[grepl("BOS", dat$Team),]
+Yankees <- dat[grepl("NYY", dat$Team),]
+Rivals <- full_join(RedSox, Yankees)
+
+jColors = c("#BD3039", "#0C2340")
+ggplot(Rivals, aes(x = HR, y = AVG)) + geom_boxplot() + facet_wrap(~Team) + xlab("Average Home Runs Hit in a Season") + ylab("Batting Average") + ggtitle("Rivaly Between the Boston Red Sox and New York Yankees") + aes(fill = Team) + scale_fill_manual(values = jColors)
+```   
+   
+When trying to answer our question about why the Red Sox and Yankees rivalry is so intense, I wanted to see if there was a difference in batting styles. The yankees are always thought of as big home run hitters, and the Red Sox are thought to have very consistent solid average hitters. So, I wanted to see if this was the case, and when I graphed it, I could see right away that my assumptions were true. The Red Sox have a much higher batting average, and the Yankees hit almost 5 more home runs per player each season. In answering the question, the reason these games are so fun to watch is the different hitting styles each team uses, one with an emphasis on batting average, the other with emphasis on home runs. Because the teams have different strengths, it makes a very close match-up and an exciting rivalry.   
+   
+
+**Where does Buster Posey fall in terms of average BABIP?**   
+```{r, echo=FALSE, message=FALSE}
+Posey <- dat[grepl("Posey,B", dat$Player),]
+MeanBABIPposey <- mean(Posey$BABIP)
+
+ggplot(dat, aes(x = BABIP)) + geom_histogram(color = "black", fill = "white") +
+  geom_vline(xintercept = MeanBABIPposey, color = "Orange", size=1.25) +
+  annotate("Text", .38, 135, label = "Buster Posey's Average BABIP")+geom_vline(aes(xintercept = mean(dat$BABIP)),col='red',size=.5, linetype="dashed")+annotate("Text", .3, 140, label="Mean BABIP", col="red", size=3)+ggtitle("Distribution of MLB Players' BABIP")
+```   
+   
+To answer this question, I created the BABIP (batting avg on balls in play), using the formula: BABIP = (H – HR)/(AB – SO – HR + SF). From this, I wanted to see where one of my favorite players stood versus the rest of the players in the data. Highlighted in orange is Buster Posey’s average BABIP using this data, and you can see that he is above the average of all the players, as he is considered to be one of the best hitting catchers to ever play. This is still an accomplishment for Posey, as he is getting old, but continuing to hit well enough to remain above the average.
+   
+   
+**Which teams hit the most homeruns?**   
+```{r, echo=FALSE}
+dat7 <- dat
+
+dat7%>%
+  select(Team, HRAB) %>%
+  mutate(HRAB = ifelse(HRAB == -9999, NA, HRAB)) %>%
+  group_by(Team) %>%
+  mutate(MeanHR = mean(HRAB, na.rm = T)) -> dat7
+
+dat8 <- select(dat7, -HRAB)
+dat8 <- distinct(dat8)  #ROUND TO 3 digits
+dat8$MeanHR <- round(dat8$MeanHR, digits = 3)
+
+dat8 <- dat8[order(dat8$MeanHR, decreasing = TRUE),] 
+
+besthr<- head(dat8, 33)
+kable(besthr) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left") %>% scroll_box(width = "500px", height = "200px")
+```   
+   
+As you can see in the table, the top 5 highest HR hitting teams are: The Toronto Bluejays, The Baltimore Orioles, The Milwaukee Brewers, The Los Angeles Dodgers, and The St. Louis Cardinals. If you remember our question about team batting averages, the Cardinals were in the top 5 there as well, so they have both a high batting average as well as a high number of homeruns hit. This is probably due to ALbert Pujols again, as he was an incredible all around player.   
+   
+   
+**Where are the stadiums of the 30 MLB teams?**
+```{r, echo=FALSE, message=FALSE, fig.keep='last'}
+Stadiums <- read_excel("StadiumLocations.xlsx")
+
+states <- map_data("state")
+base <- ggplot(states, aes(x=long, y=lat))+geom_polygon(aes(group=group))+ggtitle("MLB Teams")+ylab("   ")+xlab("   ")
+base
+
+LAA <- subset(Stadiums, Stadiums$ABB == "LAA")
+SF <- subset(Stadiums, Stadiums$ABB == "SF")
+COL <- subset(Stadiums, Stadiums$ABB == "COL")
+STL <- subset(Stadiums, Stadiums$ABB == "STL")
+ARI <- subset(Stadiums, Stadiums$ABB == "ARI")
+LAD <- subset(Stadiums, Stadiums$ABB == "LAD")
+NYM <- subset(Stadiums, Stadiums$ABB == "NYM")
+PHI <- subset(Stadiums, Stadiums$ABB == "PHI")
+DET <- subset(Stadiums, Stadiums$ABB == "DET")
+BOS <- subset(Stadiums, Stadiums$ABB == "BOS")
+TEX <- subset(Stadiums, Stadiums$ABB == "TEX")
+CIN <- subset(Stadiums, Stadiums$ABB == "CIN")
+KC <- subset(Stadiums, Stadiums$ABB == "KC")
+MIA <- subset(Stadiums, Stadiums$ABB == "MIA")
+MIL <- subset(Stadiums, Stadiums$ABB == "MIL")
+HOU <- subset(Stadiums, Stadiums$ABB == "HOU")
+WSH <- subset(Stadiums, Stadiums$ABB == "WSH")
+OAK <- subset(Stadiums, Stadiums$ABB == "OAK")
+BAL <- subset(Stadiums, Stadiums$ABB == "BAL")
+SD <- subset(Stadiums, Stadiums$ABB == "SD")
+PIT <- subset(Stadiums, Stadiums$ABB == "PIT")
+CLE <- subset(Stadiums, Stadiums$ABB == "CLE")
+TOR <- subset(Stadiums, Stadiums$ABB == "TOR")
+SEA <- subset(Stadiums, Stadiums$ABB == "SEA")
+MIN <- subset(Stadiums, Stadiums$ABB == "MIN")
+TB <- subset(Stadiums, Stadiums$ABB == "TB")
+ATL <- subset(Stadiums, Stadiums$ABB == "ATL")
+CWS <- subset(Stadiums, Stadiums$ABB == "CWS")
+CHC <- subset(Stadiums, Stadiums$ABB == "CHC")
+NYY <- subset(Stadiums, Stadiums$ABB == "NYY")
+
+half1 <- base+geom_point(aes(x=Longitude, y=Latitude),data=LAA, colour="#003263", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=LAA, color="#BA0021", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=SF, colour="#FD5A1E", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=SF, color="#27251F", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=COL, colour="#C4CED4", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=COL, color="#33006F", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=STL, colour="#0C2340", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=STL, color="#C41E3A", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=ARI, colour="#E3D4AD", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=ARI, color="#A71930", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=LAD, colour="#EF3E42", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=LAD, color="#005A9C", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=NYM, colour="#FF5910", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=NYM, color="#002D72", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=PHI, colour="#002D72", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=PHI, color="#E81828", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=DET, colour="#FA4616", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=DET, color="#0C2340", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=BOS, colour="#0C2340", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=BOS, color="#BD3039", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=TEX, colour="#C0111F", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=TEX, color="#003278", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=CIN, colour="white", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=CIN, color="#C6011F", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=KC, colour="#BD9B60", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=KC, color="#004687", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=KC, colour="#BD9B60", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=KC, color="#004687", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=MIA, colour="#FF6600", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=MIA, color="#0077C8", size =5)
+
+whole <- half1 + geom_point(aes(x=Longitude, y=Latitude),data=MIL, colour="#B6922E", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=MIL, color="#0A2351", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=HOU, colour="#EB6E1F", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=HOU, color="#002D62", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=WSH, colour="#14225A", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=WSH, color="#AB0003", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=OAK, colour="#EFB21E", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=OAK, color="#003831", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=BAL, colour="#000000", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=BAL, color="#DF4601", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=SD, colour="#A2AAAD", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=SD, color="#002D62", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=PIT, colour="#FDB827", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=PIT, color="#27251F", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=CLE, colour="#E31937", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=CLE, color="#0C2340", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=TOR, colour="#1D2D5C", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=TOR, color="#134A8E", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=SEA, colour="#005C5C", size=7)+geom_point(aes(x=Longitude,y=Latitude),data=SEA,color="#0C2C56", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=MIN, colour="#D31145", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=MIN, color="#002B5C", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=TB, colour="#8FBCE6", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=TB, color="#092C5C", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=ATL, colour="#13274F", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=ATL, color="#CE1141", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=CWS, colour="#C4CED4", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=CWS, color="#27251F", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=CHC, colour="#CC3433", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=CHC, color="#0E3386", size =5)+ geom_point(aes(x=Longitude, y=Latitude),data=NYY, colour="#0C2340", size=7)+geom_point(aes(x=Longitude, y=Latitude),data=NYY, color="red", size =5)
+
+
+library(ggrepel)
+whole+geom_label_repel(aes(x=Longitude, y=Latitude), data=Stadiums %>% filter(Longitude <0 & Longitude> -130), label=Stadiums$`ABR.`, color="black", size=3, nudge_y = .85,nudge_x = 0, label.padding = unit(.1, "lines"), alpha=.8, segment.size = .25)+geom_text(aes(x=Longitude, y=Latitude), data=Stadiums %>% filter(Longitude <0 & Longitude> -130), label=Stadiums$`AVG`, color="white", size=1.5, nudge_y = 0,nudge_x=0, alpha=.8, check_overlap = TRUE)
+
+```   
+   
+I recently learned how to use cloroplath maps, so I decided to make a map using the colors for the points that correlate to the teams colors, where the teams were located.
+   
+###**Sources:**
+- https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html   
+- http://www.espn.com/fantasy/baseball/flb/story?page=mlbdk2k11babipprimer   
+- http://www.espn.com/mlb/story/_/id/23800260/how-mike-trout-stacks-mlb-greats-first-1000-games   
+- https://www.bostonglobe.com/sports/redsox/2018/04/11/redsox/2S8tJqQlTGrUD3AtsLP56J/story.html   
+- http://mlb.mlb.com/stats
+- https://teamcolorcodes.com/mlb-color-codes/ 
